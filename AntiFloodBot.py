@@ -18,15 +18,6 @@ antiflood_config = config.get('antiflood_config')
 # emoji list for captcha
 emojis = config.get('emojis')
 
-
-@bot.command("unmuteme", hidden=True)
-def unmuteme(message):
-    with bot.chat(-1001329432550).permissions(message.sender.id) as perms:
-        perms.send_messages = False
-        perms.save()
-    message.chat.send('smutato')
-
-
 # antiflood
 @bot.process_message
 def antiflood(shared, chat, message):
