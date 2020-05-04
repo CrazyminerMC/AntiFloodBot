@@ -1,3 +1,4 @@
+# coding=utf-8
 import os.path
 import random
 import time
@@ -17,6 +18,22 @@ antiflood_config = config.get('antiflood_config')
 
 # emoji list for captcha
 emojis = config.get('emojis')
+
+
+# suggest a replace of youtube link with their respective invidious
+@bot.message_matches(
+    "(?:https?:\\/\\/)?(?:www\\.)?youtu\\.?be(?:\\.com)?\\/?.*(?:watch|embed)?(?:.*v=|v\\/|\\/)([\\w_-]+)", multiple=True)
+def youtube_link_replace(message, matches):
+    if len(matches) == 1:
+        message.reply(make_privacy_friendly_url("https://invidio.us/watch?v=", matches))
+
+
+# suggest a replace of twitter link with their respective nitter
+@bot.message_matches("(?:https?:\\/\\/)?(?:www\\.)?twitter\\.com\\/((?:#!\\/)?\\w+\\/status\\/\\d+)", multiple=True)
+def twitter_link_replace(message, matches):
+    if len(matches) == 1:
+        message.reply(make_privacy_friendly_url("https://nitter.net/", matches))
+
 
 # antiflood
 @bot.process_message
@@ -109,19 +126,25 @@ def captcha_callback(shared, query, data, chat, message):
                              " ha sbagliato due volte il captcha ed è stato bloccato per sempre", syntax='plain')
             else:
                 message.edit("@" + query.sender.username + " clicca *" + emojis[user['emoji']]["description"]
-                             + "* per risolvere il captcha. *Errori*: " + str(user['errori']), attach=generate_captcha_buttons())
+                             + "* per risolvere il captcha. *Errori*: " + str(user['errori']),
+                             attach=generate_captcha_buttons())
 
 
 # generate captcha buttons
 def generate_captcha_buttons():
     btns = botogram.Buttons()
     tempemojis = emojis
-    for i in range(3):
+    for i in range(len(emojis)):
         rkey = random.choice(list(tempemojis))
         btns[i].callback(emojis[rkey]["emoji"], "captcha", rkey)
         tempemojis = removekey(tempemojis, rkey)
 
     return btns
+
+
+def make_privacy_friendly_url(base_url, matches):
+    privacy_friendly_url = base_url + matches[0]
+    return "Blip blop, questo link rispetta la tua privacy: " + privacy_friendly_url
 
 
 # remove key from dictionary without really changing it (used to select 3 different random emojis)
