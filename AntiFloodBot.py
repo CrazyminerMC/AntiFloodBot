@@ -8,7 +8,8 @@ import yaml
 
 config = yaml.safe_load(open('config.yml'))
 
-blip_blop_explanation = 'https://gitlab.com/etica-digitale/gruppo-telegram/-/blob/master/Redirect-Spiegazione.md'
+blip_blop_explanation = 'https://gitlab.com/etica-digitale/gruppo-telegram/-'\
+        '/blob/master/Redirect-Spiegazione.md'
 
 # bot information
 bot = botogram.create(config.get('token'))
@@ -24,7 +25,9 @@ emojis = config.get('emojis')
 
 # suggest a replace of youtube link with their respective invidious
 @bot.message_matches(
-    "((?:https?:\\/\\/)?(?:www\\.)?youtu\\.?be(?:\\.com)?\\/?.*(?:watch|embed)?(?:.*v=|v\\/|\\/)([\\w_-]+))", multiple=True)
+    "((?:https?:\\/\\/)?(?:www\\.)?youtu\\.?be(?:\\.com)?\\/?.*"
+    "(?:watch|embed)?(?:.*v=|v\\/|\\/)([\\w_-]+))",
+    multiple=True)
 def youtube_link_replace(message, matches):
     if len(matches) == 2:
         blip_blopper(message, "https://invidio.us/watch?v=", matches)
@@ -32,10 +35,23 @@ def youtube_link_replace(message, matches):
 
 # suggest a replace of twitter link with their respective nitter
 @bot.message_matches(
-    "((?:https?:\\/\\/)?(?:www\\.)?twitter\\.com\\/((?:#!\\/)?\\w+(?:\\/status\\/\\d+)?))", multiple=True)
+    "((?:https?:\\/\\/)?(?:www\\.)?twitter\\.com\\/((?:#!\\/)?\\w+"
+    "(?:\\/status\\/\\d+)?))",
+    multiple=True)
 def twitter_link_replace(message, matches):
     if len(matches) == 2:
         blip_blopper(message, "https://nitter.net/", matches)
+
+
+# delete message with replaced links if clicked by original sender
+@bot.callback("delete_message")
+def delete_message(query, data, chat, message):
+    if query.sender.id == int(data):
+        message.delete()
+    else:
+        query.notify("Solo chi ha inviato il messaggio originale può "
+                     "cancellare questo",
+                     alert=True)
 
 
 # antiflood
@@ -43,7 +59,9 @@ def twitter_link_replace(message, matches):
 def antiflood(shared, chat, message):
     if 'users' not in shared:
         if os.path.isfile('data.yml'):
-            shared['users'] = yaml.load(open('data.yml'), Loader=yaml.FullLoader).get('users')
+            shared['users'] = yaml.load(
+                open('data.yml'),
+                Loader=yaml.FullLoader).get('users')
         else:
             shared['users'] = {}
 
@@ -65,7 +83,9 @@ def antiflood(shared, chat, message):
                 print("delay %i    rmessages: %i" % (delay, rmessages))
 
                 if delay > antiflood_config['secondi']:
-                    users[sender_id] = {'messages': 1, 'starttime': currentmillis, 'bloccato': 0}
+                    users[sender_id] = {'messages': 1,
+                                        'starttime': currentmillis,
+                                        'bloccato': 0}
                     saveusers(users)
                     shared['users'] = users
                 elif rmessages > antiflood_config["messaggi"]:
@@ -84,8 +104,11 @@ def antiflood(shared, chat, message):
                     saveusers(users)
                     shared['users'] = users
 
-                    chat.send("%s clicca *%s* per risolvere il captcha. *Errori*: %d"
-                              % (get_user_tag(message.sender), emojis[user['emoji']]["description"], user['errori']),
+                    chat.send("%s clicca *%s* per risolvere il captcha. "
+                              "*Errori*: %d"
+                              % (get_user_tag(message.sender),
+                                 emojis[user['emoji']]["description"],
+                                 user['errori']),
                               syntax='markdown',
                               attach=generate_captcha_buttons())
 
@@ -93,7 +116,9 @@ def antiflood(shared, chat, message):
             saveusers(users)
             shared['users'] = users
         else:
-            users[message.sender.id] = {'messages': 1, 'starttime': currentmillis, 'bloccato': 0}
+            users[message.sender.id] = {'messages': 1,
+                                        'starttime': currentmillis,
+                                        'bloccato': 0}
             saveusers(users)
             shared['users'] = users
 
@@ -131,11 +156,15 @@ def captcha_callback(shared, query, data, chat, message):
             saveusers(users)
             shared['users'] = users
             if user['errori'] >= 2:
-                message.edit("%s ha sbagliato due volte il captcha ed è stato bloccato per sempre"
+                message.edit("%s ha sbagliato due volte il captcha ed è stato "
+                             "bloccato per sempre"
                              % (get_user_tag(query.sender)))
             else:
-                message.edit("%s clicca *%s* per risolvere il captcha. *Errori*: %d"
-                             % (get_user_tag(query.sender), emojis[user['emoji']]["description"], user['errori']),
+                message.edit("%s clicca *%s* per risolvere il captcha. "
+                             "*Errori*: %d"
+                             % (get_user_tag(query.sender),
+                                emojis[user['emoji']]["description"],
+                                user['errori']),
                              syntax='markdown',
                              attach=generate_captcha_buttons())
 
@@ -153,30 +182,41 @@ def generate_captcha_buttons():
 
 
 def blip_blopper(message, base_url, matches):
+    btns = botogram.Buttons()
+    btns[0].callback("Elimina", "delete_message", str(message.sender.id))
     message.delete()
-    message.chat.send(blip_blop_message(message, base_url, matches), syntax='markdown')
+    message.chat.send(
+        blip_blop_message(message, base_url, matches),
+        syntax='markdown',
+        attach=btns)
 
 
 def blip_blop_message(message, base_url, matches):
     privacy_friendly_url = base_url + matches[1]
-    return "Blip blop, ho convertito il messaggio di %s in modo da rispettare la tua privacy:\n" \
+    return "Blip blop, ho convertito il messaggio di %s in modo da " \
+           "rispettare la tua privacy:\n" \
            "\"%s\"\n\n" \
            "[Scopri cos'è successo](%s)" \
-           % (get_user_tag(message.sender), message.text.replace(matches[0], privacy_friendly_url), blip_blop_explanation)
+           % (get_user_tag(message.sender),
+              message.text.replace(matches[0],
+                                   privacy_friendly_url),
+              blip_blop_explanation)
 
 
 def get_user_tag(user):
     if user.username:
         return '@' + escape_username(user.username)
     else:
-        return '[%s](tg:///user?id=%d)' % (escape_username(user.first_name), user.id)
+        return '[%s](tg:///user?id=%d)' \
+                % (escape_username(user.first_name), user.id)
 
 
 def escape_username(username):
-    return username.replace('_', '\\_').replace('*', '\\*').replace('`', '\\`').replace('[', '\\[')
+    return username.replace('_', '\\_').replace('*', '\\*') \
+            .replace('`', '\\`').replace('[', '\\[')
 
 
-# remove key from dictionary without really changing it (used to select 3 different random emojis)
+# remove key from dictionary without really changing it
 def removekey(d, key):
     newdict = dict(d)
     del newdict[key]
