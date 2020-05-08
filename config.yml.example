@@ -1,0 +1,15 @@
+token: ''
+antiflood_config:
+  messaggi: 3
+  secondi: 4
+
+emojis:
+  grinning_face:
+    emoji: "😀"
+    description: 'faccia sorridente'
+  face_with_tears_of_joy:
+    emoji: '😂'
+    description: 'faccia con lacrime di gioia'
+  upside_down_face:
+    emoji: '🙃'
+    description: 'faccia sotto sopra'
