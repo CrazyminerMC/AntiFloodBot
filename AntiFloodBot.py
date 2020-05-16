@@ -59,9 +59,7 @@ def delete_message(query, data, chat, message):
 def antiflood(shared, chat, message):
     if 'users' not in shared:
         if os.path.isfile('data.yml'):
-            shared['users'] = yaml.load(
-                open('data.yml'),
-                Loader=yaml.FullLoader).get('users')
+            shared['users'] = yaml.safe_load(open('data.yml')).get('users')
         else:
             shared['users'] = {}
 
@@ -192,28 +190,27 @@ def blip_blopper(message, base_url, matches):
 
 
 def blip_blop_message(message, base_url, matches):
-    privacy_friendly_url = base_url + matches[1]
+    privacy_friendly_url = base_url + escape(matches[1])
     return "Blip blop, ho convertito il messaggio di %s in modo da " \
            "rispettare la tua privacy:\n" \
            "\"%s\"\n\n" \
            "[Scopri cos'è successo](%s)" \
            % (get_user_tag(message.sender),
-              message.text.replace(matches[0],
-                                   privacy_friendly_url),
+              message.text.replace(matches[0], privacy_friendly_url),
               blip_blop_explanation)
 
 
 def get_user_tag(user):
     if user.username:
-        return '@' + escape_username(user.username)
+        return '@' + escape(user.username)
     else:
         return '[%s](tg:///user?id=%d)' \
-                % (escape_username(user.first_name), user.id)
+               % (escape(user.first_name), user.id)
 
 
-def escape_username(username):
-    return username.replace('_', '\\_').replace('*', '\\*') \
-            .replace('`', '\\`').replace('[', '\\[')
+def escape(string):
+    return string.replace('_', '\\_').replace('*', '\\*') \
+        .replace('`', '\\`').replace('[', '\\[')
 
 
 # remove key from dictionary without really changing it
