@@ -13,3 +13,8 @@ emojis:
   upside_down_face:
     emoji: '🙃'
     description: 'faccia sotto sopra'
+
+ytinstances:
+  - "https://invidio.us/"
+  - "https://invidious.snopyta.org/"
+  - "https://invidious.toot.koeln/"

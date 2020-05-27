@@ -5,6 +5,7 @@ import time
 
 import botogram
 import yaml
+import requests
 
 config = yaml.safe_load(open('config.yml'))
 
@@ -22,15 +23,22 @@ antiflood_config = config.get('antiflood_config')
 # emoji list for captcha
 emojis = config.get('emojis')
 
+# list of privacy friend Youtube player
+ytinstances = config.get('ytinstances')
+
 
 # suggest a replace of youtube link with their respective invidious
 @bot.message_matches(
-    "((?:https?:\\/\\/)?(?:www\\.)?youtu\\.?be(?:\\.com)?\\/?.*"
-    "(?:watch|embed)?(?:.*v=|v\\/|\\/)([\\w_-]+))",
+    "((?:https?:\\/\\/)?(?:www\\.)?youtu\\.?be(?:\\.com)?\\/?"
+    "(.*(?:watch|embed)?(?:.*v=|v\\/|\\/)[\\w_-]+))",
     multiple=True)
 def youtube_link_replace(message, matches):
     if len(matches) == 2:
-        blip_blopper(message, "https://invidio.us/watch?v=", matches)
+        yt_instance_url = get_working_yt_instance(escape(matches[1]))
+        if yt_instance_url:
+            blip_blopper(message, yt_instance_url, matches)
+        else:
+            message.reply("Ho provato a convertire, ma nessuna delle istanze invidious era disponibile :(")
 
 
 # suggest a replace of twitter link with their respective nitter
@@ -198,6 +206,16 @@ def blip_blop_message(message, base_url, matches):
            % (get_user_tag(message.sender),
               message.text.replace(matches[0], privacy_friendly_url),
               blip_blop_explanation)
+
+
+def get_working_yt_instance(url_part):
+    if url_part:
+        for instance in ytinstances:
+            instance_response = requests.get(instance + url_part)
+            print("Richiesto l'url %s" % instance_response.url)
+            if instance_response.status_code == 200:
+                return instance
+    return None
 
 
 def get_user_tag(user):
