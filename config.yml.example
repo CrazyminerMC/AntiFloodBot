@@ -18,3 +18,5 @@ ytinstances:
   - "https://invidio.us/"
   - "https://invidious.snopyta.org/"
   - "https://invidious.toot.koeln/"
+
+db_file: 'AntiFloodBot.db'
