@@ -3,6 +3,7 @@ import os.path
 import random
 import time
 from datetime import datetime as dt, timedelta
+import re
 
 import botogram
 import yaml
@@ -28,34 +29,6 @@ emojis = config.get('emojis')
 
 # list of privacy friend Youtube player
 ytinstances = config.get('ytinstances')
-
-
-# suggest a replace of youtube link with their respective invidious
-@bot.message_matches(
-    "((?:https?:\\/\\/)?(?:www\\.)?youtu\\.?be(?:\\.com)?\\/?"
-    "(.*(?:watch|embed)?(?:.*v=|v\\/|\\/)[\\w_-]+))",
-    multiple=True)
-def youtube_link_replace(message, matches):
-    db.add_user(message.sender.id, message.sender.username)
-    db.update_username(message.sender)
-    if len(matches) == 2:
-        yt_instance_url = get_working_yt_instance(escape(matches[1]))
-        if yt_instance_url:
-            blip_blopper(message, yt_instance_url, matches)
-        else:
-            message.reply("Ho provato a convertire, ma nessuna delle istanze invidious era disponibile :(")
-
-
-# suggest a replace of twitter link with their respective nitter
-@bot.message_matches(
-    "((?:https?:\\/\\/)?(?:www\\.)?twitter\\.com\\/((?:#!\\/)?\\w+"
-    "(?:\\/status\\/\\d+)?))",
-    multiple=True)
-def twitter_link_replace(message, matches):
-    db.add_user(message.sender.id, message.sender.username)
-    db.update_username(message.sender)
-    if len(matches) == 2:
-        blip_blopper(message, "https://nitter.net/", matches)
 
 
 # delete message with replaced links if clicked by original sender
@@ -136,6 +109,29 @@ def antiflood(shared, chat, message):
                                         'bloccato': 0}
             saveusers(users)
             shared['users'] = users
+
+
+# twitter and youtube link replacer
+@bot.process_message
+def link_replacer(chat, message):
+    clean_msg = message.text
+    twitter_regex = r"(?:https?://)?(?:www\.)?twitter\.com/"
+    youtube_regex = r"((?:https?://)?(?:www\.)?youtu\.?be(?:\.com)?/?(.*(?:watch|embed)?(?:.*)[\w_-]+))"
+    yt_matches = re.findall(youtube_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
+    twitter_matches = re.findall(twitter_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
+    blip_blop = False  # should blip blop or not
+
+    if twitter_matches:
+        clean_msg = re.sub(twitter_regex, 'https://nitter.net/', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
+        blip_blop = True
+
+    if yt_matches:
+        for match in yt_matches:
+            url, video = match
+            clean_msg = clean_msg.replace(url, f"{get_working_yt_instance(video)}{video}")
+        blip_blop = True
+    
+    if blip_blop: blip_blopper(message, clean_msg)
 
 
 # captcha callback
@@ -219,7 +215,7 @@ def punisci_command(chat, message, args):
                 punishment_reason = " ".join(args)
                 text = text + f"\nMotivo: {punishment_reason}"
 
-            chat.send(text)
+            chat.send(text, syntax='markdown')
             return
 
     if len(args) >= 1:
@@ -248,7 +244,7 @@ def punisci_command(chat, message, args):
                 punishment_reason = " ".join(args)
                 text = text + f"\nMotivo: {punishment_reason}"
 
-            chat.send(text)
+            chat.send(text, syntax='markdown')
             return
 
         # l'utente è stato bannato
@@ -259,7 +255,7 @@ def punisci_command(chat, message, args):
                 punishment_reason = " ".join(args)
                 text = text + f"\nMotivo: {punishment_reason}"
 
-            chat.send(text)
+            chat.send(text, syntax='markdown')
             return
 
 
@@ -278,7 +274,7 @@ def banhammer_command(chat, message, args):
 
         if not args:
             chat.ban(user_to_ban)
-            chat.send(f"L'utente {get_user_tag(user_to_ban)} è stato rimosso.")
+            chat.send(f"L'utente {get_user_tag(user_to_ban)} è stato rimosso.", syntax='markdown')
             db.remove_user(user_to_ban.id)
             return
 
@@ -286,7 +282,8 @@ def banhammer_command(chat, message, args):
         chat.ban(user_to_ban)
         chat.send(
             f"L'utente {get_user_tag(user_to_ban)} è stato rimosso.\n"
-            f"Motivo: {ban_reason}"
+            f"Motivo: {ban_reason}",
+            syntax='markdown'
         )
         db.remove_user(user_to_ban.id)
         return
@@ -304,12 +301,13 @@ def banhammer_command(chat, message, args):
 
             chat.ban(user[0])
             if not args:
-                chat.send(f"L'utente @{user[1]} è stato rimosso.")
+                chat.send(f"L'utente @{user[1]} è stato rimosso.", syntax='markdown')
             else:
                 ban_reason = " ".join(args)
                 chat.send(
                     f"L'utente @{user[1]} è stato rimosso.\n"
-                    f"Motivo: {ban_reason}"
+                    f"Motivo: {ban_reason}",
+                    syntax='markdown'
                 )
             db.remove_user(user[0])
         else:
@@ -319,12 +317,13 @@ def banhammer_command(chat, message, args):
 
             chat.ban(user)
             if not args:
-                chat.send(f"L'utente {user} è stato rimosso.")
+                chat.send(f"L'utente {user} è stato rimosso.", syntax='markdown')
             else:
                 ban_reason = " ".join(args)
                 chat.send(
                     f"L'utente {user} è stato rimosso.\n"
-                    f"Motivo: {ban_reason}"
+                    f"Motivo: {ban_reason}",
+                    syntax='markdown'
                 )
             db.remove_user(user)
 
@@ -343,25 +342,21 @@ def generate_captcha_buttons():
     return btns
 
 
-def blip_blopper(message, base_url, matches):
+def blip_blopper(message, clean_msg):
     btns = botogram.Buttons()
     btns[0].callback("Elimina", "delete_message", str(message.sender.id))
     message.delete()
     message.chat.send(
-        blip_blop_message(message, base_url, matches),
+        blip_blop_message(message, clean_msg),
         syntax='markdown',
         attach=btns)
 
 
-def blip_blop_message(message, base_url, matches):
-    privacy_friendly_url = base_url + escape(matches[1])
-    return "Blip blop, ho convertito il messaggio di %s in modo da " \
+def blip_blop_message(message, clean_msg):
+    return f"Blip blop, ho convertito il messaggio di {get_user_tag(message.sender)} in modo da " \
            "rispettare la tua privacy:\n" \
-           "\"%s\"\n\n" \
-           "[Scopri cos'è successo](%s)" \
-           % (get_user_tag(message.sender),
-              message.text.replace(matches[0], privacy_friendly_url),
-              blip_blop_explanation)
+           f"\"{clean_msg}\"\n\n" \
+           f"[Scopri cos'è successo]({blip_blop_explanation})"
 
 
 def get_working_yt_instance(url_part):
