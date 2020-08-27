@@ -116,7 +116,7 @@ def antiflood(shared, chat, message):
 def link_replacer(chat, message):
     clean_msg = message.text
     twitter_regex = r"(?:https?://)?(?:www\.)?twitter\.com/"
-    youtube_regex = r"((?:https?://)?(?:www\.)?youtu\.?be(?:\.com)?/?(.*(?:watch|embed)?(?:.*)[\w_-]+))"
+    youtube_regex = r"((?:https?://)?(?:www\.)?youtu\.?be(?:\.com)?/(.*(?:watch|embed)?(?:.*)[\w_-]+))"
     yt_matches = re.findall(youtube_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
     twitter_matches = re.findall(twitter_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
     blip_blop = False  # should blip blop or not
@@ -131,7 +131,7 @@ def link_replacer(chat, message):
             clean_msg = clean_msg.replace(url, f"{get_working_yt_instance(video)}{video}")
         blip_blop = True
     
-    if blip_blop: blip_blopper(message, clean_msg)
+    if blip_blop: blip_blopper(message, escape(clean_msg))
 
 
 # captcha callback
