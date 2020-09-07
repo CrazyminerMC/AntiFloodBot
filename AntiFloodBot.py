@@ -126,10 +126,13 @@ def link_replacer(chat, message):
         blip_blop = True
 
     if yt_matches:
-        for match in yt_matches:
-            url, video = match
-            clean_msg = clean_msg.replace(url, f"{get_working_yt_instance(video)}{video}")
-        blip_blop = True
+        instance = get_working_yt_instance(yt_matches[0][1])
+        if instance:
+            for match in yt_matches:
+                url, video = match
+                quality_dash = "&quality=dash" if "watch" in video else "?quality=dash"
+                clean_msg = clean_msg.replace(url, f"{instance}{video}{quality_dash}")
+            blip_blop = True
     
     if blip_blop: blip_blopper(message, escape(clean_msg))
 
