@@ -111,20 +111,49 @@ def antiflood(shared, chat, message):
             shared['users'] = users
 
 
-# twitter and youtube link replacer
+# link replacer
 @bot.process_message
 def link_replacer(chat, message):
     clean_msg = message.text
     twitter_regex = r"(?:https?://)?(?:www\.)?twitter\.com/"
+    reddit_regex = r"(?:https?://)?(?:www\.)?reddit\.com\/*/(?:.*(?=\?)|.*)"
+    instagram_regex = r"((?:https?://)?(?:www\.)?instagram\.com/)(.*/?(?:.*(?=\?))|.*)"
     youtube_regex = r"((?:https?://)?(?:www\.)?youtu\.?be(?:\.com)?/(.*(?:watch|embed)?(?:.*)[\w_-]+))"
-    yt_matches = re.findall(youtube_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
     twitter_matches = re.findall(twitter_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
+    reddit_matches = re.findall(reddit_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
+    instagram_matches = re.findall(instagram_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
+    yt_matches = re.findall(youtube_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
     blip_blop = False  # should blip blop or not
 
+    # questo rimpiazza i link di twitter con nitter
     if twitter_matches:
         clean_msg = re.sub(twitter_regex, 'https://nitter.net/', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
         blip_blop = True
+    
+    # questo rimpiazza i link di reddit con teddit e toglie i tracker
+    if reddit_matches:
+        for match in reddit_matches:
+            new_link = re.sub(r"(?:https?://)?(?:www\.)?reddit\.com/", 'https://teddit.net/', match, flags=re.MULTILINE | re.IGNORECASE)
+            clean_msg = clean_msg.replace(match, new_link)
 
+        clean_msg = re.sub(r"\?utm_source=.+&utm_medium=.+&context=\d", '', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
+        blip_blop = True
+    
+    # questo rimpiazza i link di instagram con bibliogram e toglie i tracker
+    if instagram_matches:
+        for url, value in instagram_matches:
+            if 'stories' in value:  # bibliogram non supporta le storie
+                continue
+            new_value = value
+            if '/' not in value:  # bibliogram aggiunge un u/ davanti al nome utente per i profili
+                new_value = 'u/' + value
+            new_link = 'https://bibliogram.art/' + new_value
+            clean_msg = clean_msg.replace(url + value, new_link)
+
+        clean_msg = re.sub(r"\?igshid=.*", '', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
+        blip_blop = True
+
+    # questo rimpiazza i link di youtube con un'istanza di invidious
     if yt_matches:
         instance = get_working_yt_instance(yt_matches[0][1])
         if instance:
