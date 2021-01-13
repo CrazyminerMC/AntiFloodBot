@@ -378,10 +378,17 @@ def blip_blopper(message, clean_msg):
     btns = botogram.Buttons()
     btns[0].callback("Elimina", "delete_message", str(message.sender.id))
     message.delete()
-    message.chat.send(
+    if message.reply_to_message:
+        reply_to = message.reply_to_message
+        reply_to.reply(
         blip_blop_message(message, clean_msg),
         syntax='markdown',
         attach=btns)
+    else:
+        message.chat.send(
+            blip_blop_message(message, clean_msg),
+            syntax='markdown',
+            attach=btns)
 
 
 def blip_blop_message(message, clean_msg):
