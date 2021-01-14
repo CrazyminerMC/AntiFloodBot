@@ -115,19 +115,21 @@ def antiflood(shared, chat, message):
 @bot.process_message
 def link_replacer(chat, message):
     clean_msg = message.text
-    twitter_regex = r"(?:https?://)?(?:www\.)?twitter\.com/"
-    reddit_regex = r"(?:https?://)?(?:www\.)?reddit\.com\/*/(?:.*(?=\?)|.*)"
-    instagram_regex = r"((?:https?://)?(?:www\.)?instagram\.com/)(.*/?(?:.*(?=\?))|.*)"
-    youtube_regex = r"((?:https?://)?(?:www\.)?youtu\.?be(?:\.com)?/(.*(?:watch|embed)?(?:.*)[\w_-]+))"
+    twitter_regex = r"(?:https?://)?(?:www\.)?twitter\.com/*/(?:(?=\?)|\S*)"
+    reddit_regex = r"(?:https?://)?(?:www\.)?reddit\.com\/*/(?:(?=\?)|(?:\S*))"
+    instagram_regex = r"((?:https?://)?(?:www\.)?instagram\.com/?)((?:\S*|(?=\?)))"
+    youtube_regex = r"((?:https?://)?(?:www\.)?youtu\.?be(?:\.com)?/((?:watch|embed)?(?:\S*)[\w_-]+))"
     twitter_matches = re.findall(twitter_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
     reddit_matches = re.findall(reddit_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
     instagram_matches = re.findall(instagram_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
     yt_matches = re.findall(youtube_regex, clean_msg, re.MULTILINE | re.IGNORECASE)
     blip_blop = False  # should blip blop or not
+    original_links = message.parsed_text.filter("link")
 
     # questo rimpiazza i link di twitter con nitter
     if twitter_matches:
-        clean_msg = re.sub(twitter_regex, 'https://nitter.net/', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
+        clean_msg = re.sub(r"(?:https?://)?(?:www\.)?twitter\.com/", 'https://nitter.net/', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
+        clean_msg = re.sub(r"\?s=\d+\b", '', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
         blip_blop = True
     
     # questo rimpiazza i link di reddit con teddit e toglie i tracker
@@ -136,7 +138,7 @@ def link_replacer(chat, message):
             new_link = re.sub(r"(?:https?://)?(?:www\.)?reddit\.com/", 'https://teddit.net/', match, flags=re.MULTILINE | re.IGNORECASE)
             clean_msg = clean_msg.replace(match, new_link)
 
-        clean_msg = re.sub(r"\?utm_source=.+&utm_medium=.+&context=\d", '', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
+        clean_msg = re.sub(r"\?utm_source=\S*&utm_medium=\S*&context=\S*", '', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
         blip_blop = True
     
     # questo rimpiazza i link di instagram con bibliogram e toglie i tracker
@@ -145,12 +147,12 @@ def link_replacer(chat, message):
             if 'stories' in value:  # bibliogram non supporta le storie
                 continue
             new_value = value
-            if '/' not in value:  # bibliogram aggiunge un u/ davanti al nome utente per i profili
+            if 'p/' not in value:  # bibliogram aggiunge un u/ davanti al nome utente per i profili
                 new_value = 'u/' + value
             new_link = 'https://bibliogram.art/' + new_value
             clean_msg = clean_msg.replace(url + value, new_link)
 
-        clean_msg = re.sub(r"\?igshid=.*", '', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
+        clean_msg = re.sub(r"\?igshid=\S*", '', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
         blip_blop = True
 
     # questo rimpiazza i link di youtube con un'istanza di invidious
@@ -163,7 +165,14 @@ def link_replacer(chat, message):
                 clean_msg = clean_msg.replace(url, f"{instance}{video}{quality_dash}")
             blip_blop = True
     
-    if blip_blop: blip_blopper(message, escape(clean_msg))
+    if original_links:
+        clean_msg += "\"\n\n...ma se vuoi comunque aprire il link originale, tieni pure:\n"
+        if len(original_links) > 1:
+            for i, link in enumerate(original_links, start=1):
+                clean_msg += f"[{i}] {str(link)}\n"
+        else:
+            clean_msg += f"{str(original_links[0])}\n"
+    if blip_blop: blip_blopper(message, "\"" + escape(clean_msg))
 
 
 # captcha callback
@@ -394,7 +403,7 @@ def blip_blopper(message, clean_msg):
 def blip_blop_message(message, clean_msg):
     return f"Blip blop, ho convertito il messaggio di {get_user_tag(message.sender)} in modo da " \
            "rispettare la tua privacy:\n" \
-           f"\"{clean_msg}\"\n\n" \
+           f"{clean_msg}\n\n" \
            f"[Scopri cos'è successo]({blip_blop_explanation})"
 
 
@@ -402,7 +411,7 @@ def get_working_yt_instance(url_part):
     if url_part:
         for instance in ytinstances:
             instance_response = requests.get(instance + url_part)
-            print("Richiesto l'url %s" % instance_response.url)
+            # print("Richiesto l'url %s" % instance_response.url)
             if instance_response.status_code == 200:
                 return instance
     return None
