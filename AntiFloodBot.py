@@ -166,7 +166,7 @@ def link_replacer(chat, message):
             blip_blop = True
     
     if original_links:
-        clean_msg += "\"\n\n...ma se vuoi comunque aprire il link originale, tieni pure:\n"
+        clean_msg += "\"\n\n...ma se vuoi comunque aprire i link originali:\n"
         if len(original_links) > 1:
             for i, link in enumerate(original_links, start=1):
                 clean_msg += f"[{i}] {str(link)}\n"
