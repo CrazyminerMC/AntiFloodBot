@@ -128,7 +128,7 @@ def link_replacer(chat, message):
 
     # questo rimpiazza i link di twitter con nitter
     if twitter_matches:
-        clean_msg = re.sub(r"(?:https?://)?(?:www\.)?twitter\.com/", 'https://nitter.net/', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
+        clean_msg = re.sub(r"(?:https?://)?(?:www\.)?twitter\.com/", 'https://nitter.cc/', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
         clean_msg = re.sub(r"\?s=\d+\b", '', clean_msg, flags=re.MULTILINE | re.IGNORECASE)
         blip_blop = True
     
