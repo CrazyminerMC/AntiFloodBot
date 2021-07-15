@@ -316,7 +316,6 @@ def banhammer_command(chat, message, args):
         if not args:
             chat.ban(user_to_ban)
             chat.send(f"L'utente {get_user_tag(user_to_ban)} è stato rimosso.", syntax='markdown')
-            db.remove_user(user_to_ban.id)
             return
 
         ban_reason = " ".join(args)
@@ -326,7 +325,6 @@ def banhammer_command(chat, message, args):
             f"Motivo: {ban_reason}",
             syntax='markdown'
         )
-        db.remove_user(user_to_ban.id)
         return
 
     # il comando non è usato in risposta e quindi richiede un id o username
@@ -350,7 +348,6 @@ def banhammer_command(chat, message, args):
                     f"Motivo: {ban_reason}",
                     syntax='markdown'
                 )
-            db.remove_user(user[0])
         else:
             user = args[0]
 
@@ -366,7 +363,38 @@ def banhammer_command(chat, message, args):
                     f"Motivo: {ban_reason}",
                     syntax='markdown'
                 )
-            db.remove_user(user)
+
+        return
+
+
+@bot.command("perdona")
+def perdona_command(chat, message, args):
+    if chat.type not in ("group", "supergroup"):
+        return
+
+    if message.sender not in chat.admins:
+        return
+
+    if message.reply_to_message:
+        user_to_forgive = message.reply_to_message.sender
+        forgive_user(user_to_forgive, chat)
+        chat.send(f"L'utente {get_user_tag(user_to_forgive)} è stato perdonato.", syntax='markdown')
+        return
+
+    # il comando non è usato in risposta e quindi richiede un id o username
+    if len(args) >= 1:
+        is_username = True  # check if args[0] is username or id
+        if '@' not in args[0]:
+            is_username = False
+
+        if is_username:
+            user = db.get_user_by_username(args[0].replace('@', ''))
+            forgive_user(user[0], chat)
+            chat.send(f"L'utente @{user[1]} è stato perdonato.", syntax='markdown')
+        else:
+            user = args[0]
+            forgive_user(user, chat)
+            chat.send(f"L'utente {user} è stato perdonato.", syntax='markdown')
 
         return
 
@@ -500,8 +528,25 @@ def punish_user(user, chat):
     # banna permanentemente l'utente e lo rimuove dal db
     if punishment == 1:
         chat.ban(user_id)
-        db.remove_user(user_id)
         return 1
+
+
+def forgive_user(user, chat):
+    if isinstance(user, botogram.User):
+        user_id = user.id
+    else:
+        user_id = user
+    
+    with chat.permissions(user_id) as perms:
+        perms.send_messages = True
+        perms.send_media_messages = True
+        perms.send_other_messages = True
+        perms.add_web_page_previews = True
+        perms.save()
+
+    if chat.status_of(user_id) == "kicked":
+        chat.unban(user_id)
+    db.set_warning(user_id, 0)
 
 
 if __name__ == "__main__":
